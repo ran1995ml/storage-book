@@ -1,0 +1,24 @@
+<!--官网推荐重要配置-->
+<configuration>
+    <property>
+        <name>dfs.namenode.name.dir</name>
+        <value>/data/hadoop/nn</value>
+    </property>
+
+    <property>
+        <name>dfs.datanode.data.dir</name>
+        <value>/data/hadoop/dn</value>
+    </property>
+
+    <!--    处理rpc请求的线程数-->
+    <property>
+        <name>dfs.namenode.handler.count</name>
+        <value>5</value>
+    </property>
+
+    <!--    hdfs数据块大小-->
+    <property>
+        <name>dfs.blocksize</name>
+        <value>134217728</value>
+    </property>
+</configuration>

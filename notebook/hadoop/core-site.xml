@@ -1,0 +1,35 @@
+<!--官网推荐重要配置-->
+<configuration>
+    <!--    集群的逻辑名称-->
+    <property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://mycluster</value>
+    </property>
+
+    <property>
+        <name>ha.zookeeper.quorum</name>
+        <value>node1:2181,node2:2181,node3:2181</value>
+    </property>
+
+    <property>
+        <name>hadoop.tmp.dir</name>
+        <value>/data/hadoop/tmp</value>
+    </property>
+
+    <!--文件读写IO缓冲区大小-->
+    <property>
+        <name>io.file.buffer.size</name>
+        <value>65536</value>
+    </property>
+
+    <!--    连接不上添加重试次数-->
+    <property>
+        <name>ipc.client.connect.max.retries</name>
+        <value>100</value>
+    </property>
+
+    <property>
+        <name>ipc.client.connect.retry.interval</name>
+        <value>10000</value>
+    </property>
+</configuration>

@@ -1,0 +1,19 @@
+43.134.26.165 node1
+43.134.232.93 node2
+150.109.21.77 node3
+
+172.22.0.3  node1
+172.22.0.16 node2
+172.22.0.4  node3
+
+yum install java-1.8.0-openjdk-devel -y
+
+wget https://downloads.lightbend.com/scala/2.12.18/scala-2.12.18.tgz
+
+yum install expect -y
+
+hostnamectl set-hostname node1
+
+export PATH=$PATH:$JAVA_HOME/bin
+
+rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022

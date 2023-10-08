@@ -1,0 +1,106 @@
+<!--官网推荐重要配置-->
+<configuration>
+    <!--    集群的逻辑名称-->
+    <property>
+        <name>dfs.nameservices</name>
+        <value>mycluster</value>
+    </property>
+
+    <!--    官方推荐3个，不能少于2个，不能超过5个-->
+    <property>
+        <name>dfs.ha.namenodes.mycluster</name>
+        <value>nn1,nn2</value>
+    </property>
+
+    <!--    配置nn的rpc地址-->
+    <property>
+        <name>dfs.namenode.rpc-address.mycluster.nn1</name>
+        <value>node1:8020</value>
+    </property>
+
+    <property>
+        <name>dfs.namenode.rpc-address.mycluster.nn2</name>
+        <value>node2:8020</value>
+    </property>
+
+    <!--    配置nn的http地址-->
+    <property>
+        <name>dfs.namenode.http-address.mycluster.nn1</name>
+        <value>node1:9870</value>
+    </property>
+
+    <property>
+        <name>dfs.namenode.http-address.mycluster.nn2</name>
+        <value>node2:9870</value>
+    </property>
+
+    <!--    journal node地址，active nn往里面写，standby nn从里面读-->
+    <property>
+        <name>dfs.namenode.shared.edits.dir</name>
+        <value>qjournal://node1:8485;node2:8485;node3:8485/mycluster</value>
+    </property>
+
+    <!--    连接active nn使用的类-->
+    <property>
+        <name>dfs.client.failover.proxy.provider.mycluster</name>
+        <value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
+    </property>
+
+    <!--    预防脑裂，故障转移期间使用的方法，sshfence会找到active nn杀死进程-->
+    <property>
+        <name>dfs.ha.fencing.methods</name>
+        <value>sshfence</value>
+    </property>
+
+    <property>
+        <name>dfs.ha.fencing.ssh.private-key-files</name>
+        <value>/root/.ssh/id_rsa</value>
+    </property>
+
+    <!--    配置自动故障转移-->
+    <property>
+        <name>dfs.ha.automatic-failover.enabled</name>
+        <value>true</value>
+    </property>
+
+    <!--    防止安全模式下nn 活跃-->
+    <property>
+        <name>dfs.ha.nn.not-become-active-in-safemode</name>
+        <value>true</value>
+    </property>
+
+    <!--    nn输出到这，jn从这读-->
+    <property>
+        <name>dfs.journalnode.edits.dir</name>
+        <value>/data/hadoop/jn</value>
+    </property>
+
+    <property>
+        <name>dfs.namenode.name.dir</name>
+        <value>/data/hadoop/nn</value>
+    </property>
+
+    <property>
+        <name>dfs.datanode.data.dir</name>
+        <value>/data/hadoop/dn</value>
+    </property>
+
+    <!--    处理rpc请求的线程数-->
+    <property>
+        <name>dfs.namenode.handler.count</name>
+        <value>5</value>
+    </property>
+
+    <!--    hdfs数据块大小-->
+    <property>
+        <name>dfs.blocksize</name>
+        <value>134217728</value>
+    </property>
+
+    <!--    配置副本数-->
+    <property>
+        <name>dfs.replication</name>
+        <value>2</value>
+    </property>
+
+</configuration>
