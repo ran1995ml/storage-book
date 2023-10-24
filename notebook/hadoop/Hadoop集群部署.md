@@ -21,7 +21,7 @@ ln -s hadoop-3.3.6/ hadoop
 在 `etc/hadoop/hadoop-env.sh` 配置 `JAVA_HOME`，配置`user` ，  `/etc/profile` 配置 `HADOOP_HOME`
 
 ```shell
-export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
+export JAVA_HOME=/usr/lib/jvm/java
 export HDFS_NAMENODE_USER="root"
 export HDFS_DATANODE_USER="root"
 export HDFS_ZKFC_USER="root"
