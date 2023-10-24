@@ -1,0 +1,1 @@
+`TypeReference` : jackson解析json时，将json映射到java的泛型

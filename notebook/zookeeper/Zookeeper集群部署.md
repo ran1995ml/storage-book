@@ -41,7 +41,7 @@ server.3=node3:2188:2888
 
 ```shell
 #!/bin/sh
-export JAVA_HOME=/usr/java/jdk 
+export JAVA_HOME=/usr/lib/jvm/java
 export JVMFLAGS="-Xms256m -Xmx256m $JVMFLAGS"
 ```
 

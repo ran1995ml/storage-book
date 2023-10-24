@@ -31,7 +31,7 @@ zookeeper.connect=node1:2181,node2:2181,node3:2181
 调整 `broker` 启动内存，`kafka-server-start.sh` 开头添加
 
 ```shell
-export KAFKA_HEAP_OPTS="-Xmx128m -Xms128m"
+export KAFKA_HEAP_OPTS="-Xmx512m -Xms512m"
 ```
 
 启动 `broker`
