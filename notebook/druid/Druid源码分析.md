@@ -904,9 +904,249 @@ public class TaskMaster implements TaskCountStatsProvider, TaskSlotCountStatsPro
 
 <img src="./picture/Discover.png" alt="image-20230727165157814" style="zoom:50%;" />
 
-涉及到的重要类：
+#### DruidNodeDiscovery
 
-`DruidNodeDiscovery`：
+节点服务发现接口
+
+```java
+public interface DruidNodeDiscovery
+{
+  Collection<DiscoveryDruidNode> getAllNodes();
+  void registerListener(Listener listener);
+
+  default void removeListener(Listener listener)
+  {
+    // do nothing
+  }
+
+  //监听DruidNodeDiscovery实例
+  interface Listener
+  {
+    void nodesAdded(Collection<DiscoveryDruidNode> nodes);
+
+    void nodesRemoved(Collection<DiscoveryDruidNode> nodes);
+
+    default void nodeViewInitialized()
+    {
+      // do nothing
+    }
+  }
+}
+```
+
+#### DruidNodeDiscoveryProvider
+
+作用像一个工厂类，提供 `DruidNodeDiscovery` 实例
+
+```java
+public abstract class DruidNodeDiscoveryProvider
+{
+  //key: 服务名；value: noderole集合
+  private static final Map<String, Set<NodeRole>> SERVICE_TO_NODE_TYPES = ImmutableMap.of(
+      LookupNodeService.DISCOVERY_SERVICE_KEY,
+      ImmutableSet.of(NodeRole.BROKER, NodeRole.HISTORICAL, NodeRole.PEON, NodeRole.INDEXER),
+      DataNodeService.DISCOVERY_SERVICE_KEY,
+      ImmutableSet.of(NodeRole.HISTORICAL, NodeRole.PEON, NodeRole.INDEXER, NodeRole.BROKER),
+      WorkerNodeService.DISCOVERY_SERVICE_KEY,
+      ImmutableSet.of(NodeRole.MIDDLE_MANAGER, NodeRole.INDEXER)
+  );
+  //key:service名称，value:DruidNodeDiscovery实例
+  private final ConcurrentHashMap<String, ServiceDruidNodeDiscovery> serviceDiscoveryMap =
+      new ConcurrentHashMap<>(SERVICE_TO_NODE_TYPES.size());
+
+  public abstract BooleanSupplier getForNode(DruidNode node, NodeRole nodeRole);
+
+  /** Get a {@link DruidNodeDiscovery} instance to discover nodes of the given node role. */
+  public abstract DruidNodeDiscovery getForNodeRole(NodeRole nodeRole);
+
+  /**
+   * Get DruidNodeDiscovery instance to discover nodes that announce given service in its metadata.
+   * 获取DruidNodeDiscovery实例，发现其在元数据中宣布的节点
+   */
+  public DruidNodeDiscovery getForService(String serviceName)
+  {
+    return serviceDiscoveryMap.computeIfAbsent(
+        serviceName,
+        service -> {
+          //获得需要查找的noderole
+          Set<NodeRole> nodeRolesToWatch = DruidNodeDiscoveryProvider.SERVICE_TO_NODE_TYPES.get(service);
+          if (nodeRolesToWatch == null) {
+            throw new IAE("Unknown service [%s].", service);
+          }
+          ServiceDruidNodeDiscovery serviceDiscovery = new ServiceDruidNodeDiscovery(service, nodeRolesToWatch.size());
+          DruidNodeDiscovery.Listener filteringGatheringUpstreamListener =
+              serviceDiscovery.filteringUpstreamListener();
+          for (NodeRole nodeRole : nodeRolesToWatch) {
+            getForNodeRole(nodeRole).registerListener(filteringGatheringUpstreamListener);
+          }
+          return serviceDiscovery;
+        }
+    );
+  }
+
+  private static class ServiceDruidNodeDiscovery implements DruidNodeDiscovery
+  {
+    private static final Logger log = new Logger(ServiceDruidNodeDiscovery.class);
+    //服务名称
+    private final String service;
+    //key:host+port
+    private final ConcurrentMap<String, DiscoveryDruidNode> nodes = new ConcurrentHashMap<>();
+    private final Collection<DiscoveryDruidNode> unmodifiableNodes = Collections.unmodifiableCollection(nodes.values());
+    //已经注册的观察者
+    private final List<Listener> listeners = new ArrayList<>();
+
+    private final Object lock = new Object();
+
+    private int uninitializedNodeRoles;
+
+    ServiceDruidNodeDiscovery(String service, int watchedNodeRoles)
+    {
+      Preconditions.checkArgument(watchedNodeRoles > 0);
+      this.service = service;
+      this.uninitializedNodeRoles = watchedNodeRoles;
+    }
+
+    @Override
+    public Collection<DiscoveryDruidNode> getAllNodes()
+    {
+      return unmodifiableNodes;
+    }
+
+    @Override
+    public void registerListener(Listener listener)
+    {
+      if (listener instanceof FilteringUpstreamListener) {
+        throw new IAE("FilteringUpstreamListener should not be registered with ServiceDruidNodeDiscovery itself");
+      }
+      synchronized (lock) {
+        if (!unmodifiableNodes.isEmpty()) {
+          listener.nodesAdded(unmodifiableNodes);
+        }
+        if (uninitializedNodeRoles == 0) {
+          listener.nodeViewInitialized();
+        }
+        listeners.add(listener);
+      }
+    }
+
+    @Override
+    public void removeListener(Listener listener)
+    {
+      synchronized (lock) {
+        if (listener != null) {
+          listeners.remove(listener);
+        }
+      }
+    }
+
+    DruidNodeDiscovery.Listener filteringUpstreamListener()
+    {
+      return new FilteringUpstreamListener();
+    }
+
+    /**
+     * Listens for all node updates and filters them based on {@link #service}. Note: this listener is registered with
+     * the objects returned from {@link #getForNodeRole(NodeRole)}, NOT with {@link ServiceDruidNodeDiscovery} itself.
+     * 监听所有更新的节点，根据service名再做过滤
+     */
+    class FilteringUpstreamListener implements DruidNodeDiscovery.Listener
+    {
+      @Override
+      public void nodesAdded(Collection<DiscoveryDruidNode> nodesDiscovered)
+      {
+        synchronized (lock) {
+          List<DiscoveryDruidNode> nodesAdded = new ArrayList<>();
+          for (DiscoveryDruidNode node : nodesDiscovered) {
+            //发现的节点中过滤出需要的服务
+            if (node.getServices().containsKey(service)) {
+              DiscoveryDruidNode prev = nodes.putIfAbsent(node.getDruidNode().getHostAndPortToUse(), node);
+
+              if (prev == null) {
+                nodesAdded.add(node);
+              } else {
+                log.warn("Node[%s] discovered but already exists [%s].", node, prev);
+              }
+            } else {
+              log.warn("Node[%s] discovered but doesn't have service[%s]. Ignored.", node, service);
+            }
+          }
+
+          if (nodesAdded.isEmpty()) {
+            // Don't bother listeners with an empty update, it doesn't make sense.
+            return;
+          }
+
+          Collection<DiscoveryDruidNode> unmodifiableNodesAdded = Collections.unmodifiableCollection(nodesAdded);
+          for (Listener listener : listeners) {
+            try {
+              //通知观察者更新节点
+              listener.nodesAdded(unmodifiableNodesAdded);
+            }
+            catch (Exception ex) {
+              log.error(ex, "Listener[%s].nodesAdded(%s) threw exception. Ignored.", listener, nodesAdded);
+            }
+          }
+        }
+      }
+
+      @Override
+      public void nodesRemoved(Collection<DiscoveryDruidNode> nodesDisappeared)
+      {
+        synchronized (lock) {
+          List<DiscoveryDruidNode> nodesRemoved = new ArrayList<>();
+          for (DiscoveryDruidNode node : nodesDisappeared) {
+            DiscoveryDruidNode prev = nodes.remove(node.getDruidNode().getHostAndPortToUse());
+            if (prev != null) {
+              nodesRemoved.add(node);
+            } else {
+              log.warn("Node[%s] disappeared but was unknown for service listener [%s].", node, service);
+            }
+          }
+
+          if (nodesRemoved.isEmpty()) {
+            // Don't bother listeners with an empty update, it doesn't make sense.
+            return;
+          }
+
+          Collection<DiscoveryDruidNode> unmodifiableNodesRemoved = Collections.unmodifiableCollection(nodesRemoved);
+          for (Listener listener : listeners) {
+            try {
+              listener.nodesRemoved(unmodifiableNodesRemoved);
+            }
+            catch (Exception ex) {
+              log.error(ex, "Listener[%s].nodesRemoved(%s) threw exception. Ignored.", listener, nodesRemoved);
+            }
+          }
+        }
+      }
+
+      @Override
+      public void nodeViewInitialized()
+      {
+        synchronized (lock) {
+          if (uninitializedNodeRoles == 0) {
+            log.error("Unexpected call of nodeViewInitialized()");
+            return;
+          }
+          uninitializedNodeRoles--;
+          if (uninitializedNodeRoles == 0) {
+            for (Listener listener : listeners) {
+              try {
+                listener.nodeViewInitialized();
+              }
+              catch (Exception ex) {
+                log.error(ex, "Listener[%s].nodeViewInitialized() threw exception. Ignored.", listener);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+
 
 ### Task管理
 
