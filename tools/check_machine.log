@@ -1,0 +1,11 @@
+
+start check server:rccp202-24a.iad5.prod.conviva.com
+############## df ########################
+Filesystem                        Size  Used Avail Use% Mounted on
+/dev/mapper/md2--crypt-lvconviva  809G   80K  767G   1% /conviva
+############## memory #################################
+              total        used        free      shared  buff/cache   available
+Mem:            503           1         498           0           3         498
+Swap:            31           0          31
+end check server:rccp202-24a.iad5.prod.conviva.com 
+

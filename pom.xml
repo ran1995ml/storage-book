@@ -5,13 +5,15 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.ran.storage</groupId>
-    <artifactId>storage-book</artifactId>
+    <artifactId>storage-notebook</artifactId>
     <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
     <modules>
         <module>Guice</module>
         <module>JavaSE</module>
         <module>JavaSE/SPI</module>
+        <module>Kafka</module>
+        <module>Netty</module>
     </modules>
 
     <properties>

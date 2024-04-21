@@ -1,8 +1,8 @@
 #!/bin/bash
 
-KAFKA_HOME=/opt/kafka
-KAFKA_BROKER=node1:9092,node2:9092,node3:9092
-KAFKA_TOPIC=druid_ingestion
+KAFKA_HOME=/Users/rwei/Downloads/kafka_2.12-3.1.2
+KAFKA_BROKER=rccp109-5d.iad4.prod.conviva.com:30200
+KAFKA_TOPIC=test1
 
 mock_json() {
   TIMESTAMP=$(date +%s)
