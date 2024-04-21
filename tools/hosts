@@ -1,10 +1,18 @@
-43.156.53.135  node1
-43.156.237.193 node2
-43.134.229.159 node3
+120.53.120.219 node1
+49.232.148.148 node2
+152.136.98.20  node3
 
-172.22.0.15 node1
-172.22.0.17 node2
-172.22.0.8  node3
+172.21.0.5 node1
+172.21.0.4 node2
+172.21.0.6 node3
+
+
+43.156.50.30 master
+43.163.2.70  worker
+
+172.22.128.134 master
+172.22.128.130 worker
+
 
 yum install java-1.8.0-openjdk-devel -y
 
@@ -17,3 +25,30 @@ hostnamectl set-hostname node1
 export PATH=$PATH:$JAVA_HOME/bin
 
 rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+
+
+systemctl stop firewalld
+systemctl disable firewalld
+sed -i 's/enforcing/disabled/' /etc/selinux/config
+sed -ri 's/.*swap.*/#&/' /etc/fstab
+
+cat > /etc/sysctl.d/k8s.conf << EOF
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+EOF
+sysctl --system
+
+yum install ntpdate -y
+ntpdate time.windows.com
+
+
+yum -y install wget yum-utils device-mapper-persistent-data lvm2
+yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+sed -i 's+download.docker.com+mirrors.aliyun.com/docker-ce+' /etc/yum.repos.d/docker-ce.repo
+
+wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+kubectl apply -f kube-flannel.yml
+
+wget https://get.helm.sh/helm-v3.10.2-linux-amd64.tar.gz
+tar -zxvf helm-v3.10.2-linux-amd64.tar.gz
+mv linux-amd64/helm /usr/bin/
